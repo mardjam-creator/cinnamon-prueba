@@ -1,0 +1,74 @@
+{
+ "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+ "landingPage": "/",
+ "preferredVersions": {
+  "php": "8.3",
+  "wp": "latest"
+ },
+ "features": {
+  "networking": true
+ },
+ "login": true,
+ "steps": [
+  {
+   "step": "setSiteLanguage",
+   "language": "es_UY"
+  },
+  {
+   "step": "installPlugin",
+   "pluginData": {
+    "resource": "wordpress.org/plugins",
+    "slug": "woocommerce"
+   },
+   "options": {
+    "activate": true
+   }
+  },
+  {
+   "step": "installTheme",
+   "themeData": {
+    "resource": "url",
+    "url": "https://raw.githubusercontent.com/mardjam-creator/cinnamon-prueba/main/cinnamon.zip"
+   },
+   "options": {
+    "activate": true
+   }
+  },
+  {
+   "step": "installPlugin",
+   "pluginData": {
+    "resource": "url",
+    "url": "https://raw.githubusercontent.com/mardjam-creator/cinnamon-prueba/main/cinnamon-tienda.zip"
+   },
+   "options": {
+    "activate": true
+   }
+  },
+  {
+   "step": "installPlugin",
+   "pluginData": {
+    "resource": "url",
+    "url": "https://raw.githubusercontent.com/mardjam-creator/cinnamon-prueba/main/cinnamon-pago-qr.zip"
+   },
+   "options": {
+    "activate": true
+   }
+  },
+  {
+   "step": "writeFile",
+   "path": "/wordpress/qr-de-prueba.png",
+   "data": {
+    "resource": "url",
+    "url": "https://raw.githubusercontent.com/mardjam-creator/cinnamon-prueba/main/qr-de-prueba.png"
+   }
+  },
+  {
+   "step": "runPHP",
+   "code": "<?php require '/wordpress/wp-load.php'; update_option('woocommerce_coming_soon','no'); update_option('woocommerce_onboarding_profile', array('skipped'=>true)); cinnamon_tienda_run(array_keys(cinnamon_tienda_steps())); require_once ABSPATH . 'wp-admin/includes/image.php'; require_once ABSPATH . 'wp-admin/includes/file.php'; require_once ABSPATH . 'wp-admin/includes/media.php'; $tmp = wp_tempnam('qr'); copy('/wordpress/qr-de-prueba.png', $tmp); $id = media_handle_sideload(array('name' => 'qr-de-prueba.png', 'tmp_name' => $tmp), 0); $s = (array) get_option('woocommerce_cinnamon_qr_settings', array()); $s['enabled'] = 'yes'; $s['qr_image'] = is_wp_error($id) ? '' : wp_get_attachment_url($id); update_option('woocommerce_cinnamon_qr_settings', $s);"
+  },
+  {
+   "step": "runPHP",
+   "code": "<?php require '/wordpress/wp-load.php';\nrequire_once ABSPATH . 'wp-admin/includes/image.php'; require_once ABSPATH . 'wp-admin/includes/file.php'; require_once ABSPATH . 'wp-admin/includes/media.php';\n$photo = function ( $file, $title ) { $tmp = wp_tempnam( $file ); copy( get_theme_file_path( 'assets/images/' . $file ), $tmp ); $id = media_handle_sideload( array( 'name' => $file, 'tmp_name' => $tmp ), 0 ); if ( is_wp_error( $id ) ) { return 0; } wp_update_post( array( 'ID' => $id, 'post_title' => $title ) ); return $id; };\n$product = function ( $name ) { $p = get_posts( array( 'post_type' => 'product', 'title' => $name, 'numberposts' => 1, 'fields' => 'ids' ) ); return $p ? (int) $p[0] : 0; };\nupdate_option( 'cinnamon_novedades', array(\n  array( 'image' => $photo( 'portada-frutos-secos.jpg', 'Novedad: frutos secos' ), 'title' => 'Frutos Secos', 'text' => 'Descuentos desde 500 g y mejor precio por kilo', 'url' => home_url( '/categoria/frutos-secos/' ), 'product' => 0, 'active' => true ),\n  array( 'image' => $photo( 'portada-condimentos.jpg', 'Novedad: cúrcuma en polvo' ), 'title' => 'Cúrcuma en polvo', 'text' => '20 % de descuento en 500 g', 'url' => '', 'product' => $product( 'Cúrcuma en polvo' ), 'active' => true ),\n  array( 'image' => $photo( 'portada-harinas.jpg', 'Novedad: harina de almendras' ), 'title' => 'Harina de almendras', 'text' => '20 % de descuento en 1 kg', 'url' => '', 'product' => $product( 'Harina de almendras' ), 'active' => true ),\n  array( 'image' => $photo( 'portada-semillas.jpg', 'Novedad: semillas de chía' ), 'title' => 'Semillas de chía', 'text' => '15 % de descuento en 1 kg', 'url' => '', 'product' => $product( 'Semillas de chía' ), 'active' => true ),\n), false );\n$until = ( new DateTimeImmutable( 'now', wp_timezone() ) )->modify( '+3 days' )->format( 'Y-m-d\\TH:i' );\nupdate_option( 'cinnamon_avisos', array( array( 'text' => 'Aviso de ejemplo: ==Cyber Monday==, hasta **30% extra** en productos', 'url' => home_url( '/ofertas/' ), 'from' => '', 'until' => $until, 'style' => 'black', 'font' => 'figtree', 'size' => 'normal', 'motion' => 'ninguno', 'countdown' => true ) ), false );\n$plans = cinnamon_sub_plans();\nforeach ( $plans as $i => &$row ) { foreach ( array( 'mvd', 'int' ) as $zone ) { $row[ $zone . '_url' ] = 'https://www.mercadopago.com.uy/subscriptions/checkout?preapproval_plan_id=ejemplo-cafe-' . $i . '-' . $zone; } }\nunset( $row );\nupdate_option( 'cinnamon_suscripcion_planes', $plans, false );\n$flour = wc_get_product( $product( 'Harina de almendras' ) );\nif ( $flour ) {\n  foreach ( cinnamon_psub_presentations( $flour ) as $id => $label ) {\n    if ( '1 kg' !== $label ) { continue; }\n    $links = array();\n    foreach ( array_keys( cinnamon_psub_amounts( wc_get_product( $id ), 900 ) ) as $amount ) { $links[ $amount ] = 'https://www.mercadopago.com.uy/subscriptions/checkout?preapproval_plan_id=ejemplo-harina-' . $amount; }\n    update_post_meta( $flour->get_id(), '_cin_sub_enabled', 'yes' );\n    update_post_meta( $flour->get_id(), '_cin_sub_items', array( $id => array( 'price' => 900, 'links' => $links ) ) );\n  }\n}"
+  }
+ ]
+}
